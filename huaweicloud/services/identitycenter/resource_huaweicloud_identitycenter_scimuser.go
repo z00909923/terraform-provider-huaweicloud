@@ -125,11 +125,6 @@ func ResourceIdentityCenterSCIMUser() *schema.Resource {
 				Computed:    true,
 				Description: `The updater of the user.`,
 			},
-			"enabled": {
-				Type:        schema.TypeBool,
-				Computed:    true,
-				Description: `Whether the user is enabled.`,
-			},
 		},
 	}
 }
