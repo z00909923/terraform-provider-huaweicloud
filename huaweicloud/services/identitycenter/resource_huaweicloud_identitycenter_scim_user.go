@@ -22,10 +22,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-// @API IdentityStore POST /{tenant_id}/scim/v2/Users
-// @API IdentityStore GET /{tenant_id}/scim/v2/Users/{user_id}
-// @API IdentityStore PUT /{tenant_id}/scim/v2/Users/{user_id}
-// @API IdentityStore DELETE /{tenant_id}/scim/v2/Users/{user_id}
+// @API IdentitySCIM POST /{tenant_id}/scim/v2/Users
+// @API IdentitySCIM GET /{tenant_id}/scim/v2/Users/{user_id}
+// @API IdentitySCIM PUT /{tenant_id}/scim/v2/Users/{user_id}
+// @API IdentitySCIM DELETE /{tenant_id}/scim/v2/Users/{user_id}
+//TODO Authorization header头在底层源码里会被覆盖，导致实际请求带的Authorization header为底层源码里的签名，Bearertoken无法认证 401
 func ResourceIdentityCenterSCIMUser() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceIdentityCenterSCIMUserCreate,
@@ -535,11 +536,11 @@ func resourceIdentityCenterSCIMUserImportState(_ context.Context, d *schema.Reso
 	_ interface{}) ([]*schema.ResourceData, error) {
 	parts := strings.Split(d.Id(), "/")
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid id format, must be <identity_store_id>/<id>")
+		return nil, fmt.Errorf("invalid id format, must be <tenant_id>/<id>")
 	}
 	d.SetId(parts[1])
 	mErr := multierror.Append(nil,
-		d.Set("identity_store_id", parts[0]),
+		d.Set("tenant_id", parts[0]),
 	)
 	if err := mErr.ErrorOrNil(); err != nil {
 		return nil, fmt.Errorf("failed to set value to state when import, %s", err)

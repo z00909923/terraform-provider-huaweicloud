@@ -2266,6 +2266,8 @@ func Provider() *schema.Provider {
 			"huaweicloud_identitycenter_custom_role_attachment":                 identitycenter.ResourceCustomRoleAttachment(),
 			"huaweicloud_identitycenter_access_control_attribute_configuration": identitycenter.ResourceAccessControlAttributeConfiguration(),
 			"huaweicloud_identitycenter_provision_permission_set":               identitycenter.ResourceProvisionPermissionSet(),
+			"huaweicloud_identitycenter_scim_user":                              identitycenter.ResourceIdentityCenterSCIMUser(),
+			"huaweicloud_identitycenter_client":                                 identitycenter.ResourceIdentityCenterClient(),
 
 			"huaweicloud_iec_eip":                 iec.ResourceEip(),
 			"huaweicloud_iec_keypair":             iec.ResourceKeypair(),
