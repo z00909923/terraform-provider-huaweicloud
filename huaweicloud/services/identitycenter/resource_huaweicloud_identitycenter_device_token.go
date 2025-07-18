@@ -18,11 +18,11 @@ import (
 )
 
 // @API IdentityStore POST /v1/clients
-func ResourceIdentityCenterClient() *schema.Resource {
+func ResourceIdentityCenterDeviceToken() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIdentityCenterClientCreate,
-		ReadContext:   resourceIdentityCenterClientRead,
-		DeleteContext: resourceIdentityCenterClientDelete,
+		CreateContext: resourceIdentityCenterDeviceTokenCreate,
+		ReadContext:   resourceIdentityCenterDeviceTokenRead,
+		DeleteContext: resourceIdentityCenterDeviceTokenDelete,
 		Description:   "schema: Internal",
 		Schema: map[string]*schema.Schema{
 			"client_name": {
@@ -65,23 +65,11 @@ func ResourceIdentityCenterClient() *schema.Resource {
 					Type: schema.TypeString,
 				},
 			},
-			"client_id": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"client_secret": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"client_secret_expires_at": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
 		},
 	}
 }
 
-func resourceIdentityCenterClientCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIdentityCenterDeviceTokenCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 
@@ -99,7 +87,8 @@ func resourceIdentityCenterClientCreate(ctx context.Context, d *schema.ResourceD
 	createIdentityCenterClientOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
 	}
-	createIdentityCenterClientOpt.JSONBody = utils.RemoveNil(buildCreateIdentityCenterClientBodyParams(d))
+	log.Println(createIdentityCenterClientOpt)
+	createIdentityCenterClientOpt.JSONBody = utils.RemoveNil(buildCreateIdentityCenterDeviceTokenBodyParams(d))
 	createIdentityCenterClientResp, err := createIdentityCenterClientClient.Request("POST",
 		createIdentityCenterClientPath, &createIdentityCenterClientOpt)
 	if err != nil {
@@ -111,44 +100,29 @@ func resourceIdentityCenterClientCreate(ctx context.Context, d *schema.ResourceD
 		return diag.FromErr(err)
 	}
 
-	clientId := utils.PathSearch("client_info.client_id", createIdentityCenterClientRespBody, "").(string)
-	if clientId == "" {
-		return diag.Errorf("unable to find the Identity Center Client ID from the API response")
+	deviceCode := utils.PathSearch("device_code", createIdentityCenterClientRespBody, "").(string)
+	if deviceCode == "" {
+		return diag.Errorf("unable to find the Identity Center device_code from the API response")
 	}
-	d.SetId(clientId)
-
-	clientSecret := utils.PathSearch("client_info.client_secret", createIdentityCenterClientRespBody, "").(string)
-	if clientSecret == "" {
-		return diag.Errorf("unable to find the Identity Center Client ID from the API response")
-	}
-	d.Set("client_secret", clientSecret)
-
-	expiredAt := utils.PathSearch("client_info.client_secret_expires_at", createIdentityCenterClientRespBody, "").(string)
-	if expiredAt == "" {
-		return diag.Errorf("unable to find the Identity Center Client ID from the API response")
-	}
-	d.Set("client_secret_expires_at", expiredAt)
+	d.SetId(deviceCode)
 
 	return nil
 }
 
-func buildCreateIdentityCenterClientBodyParams(d *schema.ResourceData) map[string]interface{} {
+func buildCreateIdentityCenterDeviceTokenBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"client_name":                utils.ValueIgnoreEmpty(d.Get("client_name")),
-		"client_type":                utils.ValueIgnoreEmpty(d.Get("client_type")),
-		"token_endpoint_auth_method": utils.ValueIgnoreEmpty(d.Get("token_endpoint_auth_method")),
-		"scopes":                     d.Get("scopes"),
-		"grant_types":                d.Get("grant_types"),
-		"response_types":             d.Get("response_types"),
+		"client_id":     utils.ValueIgnoreEmpty(d.Get("client_id")),
+		"client_secret": utils.ValueIgnoreEmpty(d.Get("client_secret")),
+		"start_url":     utils.ValueIgnoreEmpty(d.Get("start_url")),
 	}
 	return bodyParams
 }
 
-func resourceIdentityCenterClientRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIdentityCenterDeviceTokenRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	return nil
 }
 
-func resourceIdentityCenterClientDelete(_ context.Context, _ *schema.ResourceData, _ interface{}) diag.Diagnostics {
+func resourceIdentityCenterDeviceTokenDelete(_ context.Context, _ *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	errorMsg := "Deleting client is not supported."
 	return diag.Diagnostics{
 		diag.Diagnostic{
