@@ -17,7 +17,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-// @API IdentityStore POST /v1/clients
+// @API IdentityStore POST /v1/tokens
 func ResourceIdentityCenterDeviceToken() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceIdentityCenterDeviceTokenCreate,
@@ -25,45 +25,54 @@ func ResourceIdentityCenterDeviceToken() *schema.Resource {
 		DeleteContext: resourceIdentityCenterDeviceTokenDelete,
 		Description:   "schema: Internal",
 		Schema: map[string]*schema.Schema{
-			"client_name": {
+			"client_id": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-			"client_type": {
+			"client_secret": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-			"token_endpoint_auth_method": {
+			"code": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
+			"device_code": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
+			"grant_type": {
 				Type:     schema.TypeString,
 				Required: true,
+				ForceNew: true,
+			},
+			"redirect_uri": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
+			"refresh_token": {
+				Type:     schema.TypeString,
+				Optional: true,
 				ForceNew: true,
 			},
 			"scopes": {
 				Type:     schema.TypeList,
 				Optional: true,
+				ForceNew: true,
+				Elem:     schema.TypeString,
+			},
+			"access_token": {
+				Type:     schema.TypeList,
 				Computed: true,
-				ForceNew: true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
 			},
-			"grant_types": {
+			"expires_in": {
 				Type:     schema.TypeList,
-				Required: true,
-				ForceNew: true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
-			},
-			"response_types": {
-				Type:     schema.TypeList,
-				Required: true,
-				ForceNew: true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
+				Computed: true,
 			},
 		},
 	}
@@ -75,36 +84,36 @@ func resourceIdentityCenterDeviceTokenCreate(ctx context.Context, d *schema.Reso
 
 	// createIdentityCenterClient: create IdentityCenter client
 	var (
-		createIdentityCenterClientHttpUrl = "v1/clients"
-		createIdentityCenterClientProduct = "identityoidc"
+		createIdentityCenterDeviceTokenHttpUrl = "/v1/tokens"
+		createIdentityCenterDeviceTokenProduct = "identityoidc"
 	)
-	createIdentityCenterClientClient, err := cfg.NewServiceClient(createIdentityCenterClientProduct, region)
+	createIdentityCenterDeviceTokenClient, err := cfg.NewServiceClient(createIdentityCenterDeviceTokenProduct, region)
 	if err != nil {
 		return diag.Errorf("error creating Identity Center Client: %s", err)
 	}
 
-	createIdentityCenterClientPath := createIdentityCenterClientClient.Endpoint + createIdentityCenterClientHttpUrl
-	createIdentityCenterClientOpt := golangsdk.RequestOpts{
+	createIdentityCenterDeviceTokenPath := createIdentityCenterDeviceTokenClient.Endpoint + createIdentityCenterDeviceTokenHttpUrl
+	createIdentityCenterDeviceTokenOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
 	}
-	log.Println(createIdentityCenterClientOpt)
-	createIdentityCenterClientOpt.JSONBody = utils.RemoveNil(buildCreateIdentityCenterDeviceTokenBodyParams(d))
-	createIdentityCenterClientResp, err := createIdentityCenterClientClient.Request("POST",
-		createIdentityCenterClientPath, &createIdentityCenterClientOpt)
+	log.Println(createIdentityCenterDeviceTokenOpt)
+	createIdentityCenterDeviceTokenOpt.JSONBody = utils.RemoveNil(buildCreateIdentityCenterDeviceTokenBodyParams(d))
+	createIdentityCenterClientResp, err := createIdentityCenterDeviceTokenClient.Request("POST",
+		createIdentityCenterDeviceTokenPath, &createIdentityCenterDeviceTokenOpt)
 	if err != nil {
 		return diag.Errorf("error creating Identity Center Client: %s", err)
 	}
 
-	createIdentityCenterClientRespBody, err := utils.FlattenResponse(createIdentityCenterClientResp)
+	createIdentityCenterDeviceTokenRespBody, err := utils.FlattenResponse(createIdentityCenterClientResp)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	deviceCode := utils.PathSearch("device_code", createIdentityCenterClientRespBody, "").(string)
-	if deviceCode == "" {
-		return diag.Errorf("unable to find the Identity Center device_code from the API response")
+	token := utils.PathSearch("access_token", createIdentityCenterDeviceTokenRespBody, "").(string)
+	if token == "" {
+		return diag.Errorf("unable to find the Identity Center access_token from the API response")
 	}
-	d.SetId(deviceCode)
+	d.SetId(token)
 
 	return nil
 }
@@ -113,7 +122,12 @@ func buildCreateIdentityCenterDeviceTokenBodyParams(d *schema.ResourceData) map[
 	bodyParams := map[string]interface{}{
 		"client_id":     utils.ValueIgnoreEmpty(d.Get("client_id")),
 		"client_secret": utils.ValueIgnoreEmpty(d.Get("client_secret")),
-		"start_url":     utils.ValueIgnoreEmpty(d.Get("start_url")),
+		"code":          utils.ValueIgnoreEmpty(d.Get("code")),
+		"device_code":   utils.ValueIgnoreEmpty(d.Get("device_code")),
+		"grant_type":    utils.ValueIgnoreEmpty(d.Get("grant_type")),
+		"redirect_uri":  utils.ValueIgnoreEmpty(d.Get("redirect_uri")),
+		"refresh_token": utils.ValueIgnoreEmpty(d.Get("refresh_token")),
+		"scopes":        d.Get("scopes"),
 	}
 	return bodyParams
 }
@@ -123,7 +137,7 @@ func resourceIdentityCenterDeviceTokenRead(_ context.Context, d *schema.Resource
 }
 
 func resourceIdentityCenterDeviceTokenDelete(_ context.Context, _ *schema.ResourceData, _ interface{}) diag.Diagnostics {
-	errorMsg := "Deleting client is not supported."
+	errorMsg := "Deleting token is not supported."
 	return diag.Diagnostics{
 		diag.Diagnostic{
 			Severity: diag.Warning,
