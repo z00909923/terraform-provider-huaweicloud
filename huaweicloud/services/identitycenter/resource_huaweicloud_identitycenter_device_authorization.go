@@ -53,6 +53,10 @@ func ResourceIdentityCenterDeviceAuthorization() *schema.Resource {
 }
 
 func resourceIdentityCenterDeviceAuthorizationCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return startDeviceAuthorization(d, meta)
+}
+
+func startDeviceAuthorization(d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 
@@ -63,7 +67,7 @@ func resourceIdentityCenterDeviceAuthorizationCreate(ctx context.Context, d *sch
 	)
 	createIdentityCenterDeviceAuthorizationClient, err := cfg.NewServiceClient(createIdentityCenterDeviceAuthorizationProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating Identity Center Device Authorization: %s", err)
+		return diag.Errorf("error creating Identity Center device authorization: %s", err)
 	}
 
 	createIdentityCenterDeviceAuthorizationPath := createIdentityCenterDeviceAuthorizationClient.Endpoint + createIdentityCenterClientHttpUrl
@@ -71,11 +75,11 @@ func resourceIdentityCenterDeviceAuthorizationCreate(ctx context.Context, d *sch
 		KeepResponseBody: true,
 	}
 	log.Println(createIdentityCenterDeviceAuthorizationOpt)
-	createIdentityCenterDeviceAuthorizationOpt.JSONBody = utils.RemoveNil(buildCreateIdentityCenterClientBodyParams(d))
+	createIdentityCenterDeviceAuthorizationOpt.JSONBody = utils.RemoveNil(buildCreateIdentityCenterDeviceAuthorizationBodyParams(d))
 	createIdentityCenterClientResp, err := createIdentityCenterDeviceAuthorizationClient.Request("POST",
 		createIdentityCenterDeviceAuthorizationPath, &createIdentityCenterDeviceAuthorizationOpt)
 	if err != nil {
-		return diag.Errorf("error creating Identity Center Client: %s", err)
+		return diag.Errorf("error creating Identity Center device authorization: %s", err)
 	}
 
 	createIdentityCenterDeviceAuthorizationRespBody, err := utils.FlattenResponse(createIdentityCenterClientResp)
@@ -89,7 +93,6 @@ func resourceIdentityCenterDeviceAuthorizationCreate(ctx context.Context, d *sch
 	}
 	d.SetId(deviceCode)
 	d.Set("device_code", deviceCode)
-
 	verificationUriComplete := utils.PathSearch("verification_uri_complete", createIdentityCenterDeviceAuthorizationRespBody, "").(string)
 	if verificationUriComplete == "" {
 		return diag.Errorf("unable to find the Identity Center verification_uri_complete from the API response")
@@ -100,22 +103,21 @@ func resourceIdentityCenterDeviceAuthorizationCreate(ctx context.Context, d *sch
 
 func buildCreateIdentityCenterDeviceAuthorizationBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"client_name":                utils.ValueIgnoreEmpty(d.Get("client_name")),
-		"client_type":                utils.ValueIgnoreEmpty(d.Get("client_type")),
-		"token_endpoint_auth_method": utils.ValueIgnoreEmpty(d.Get("token_endpoint_auth_method")),
-		"scopes":                     d.Get("scopes"),
-		"grant_types":                d.Get("grant_types"),
-		"response_types":             d.Get("response_types"),
+		"client_id":     utils.ValueIgnoreEmpty(d.Get("client_id")),
+		"client_secret": utils.ValueIgnoreEmpty(d.Get("client_secret")),
+		"start_url":     utils.ValueIgnoreEmpty(d.Get("start_url")),
 	}
 	return bodyParams
 }
 
 func resourceIdentityCenterDeviceAuthorizationRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	// everytime generate a new device code
+	startDeviceAuthorization(d, meta)
 	return nil
 }
 
 func resourceIdentityCenterDeviceAuthorizationDelete(_ context.Context, _ *schema.ResourceData, _ interface{}) diag.Diagnostics {
-	errorMsg := "Deleting Device Authorization is not supported."
+	errorMsg := "Deleting device authorization is not supported."
 	return diag.Diagnostics{
 		diag.Diagnostic{
 			Severity: diag.Warning,

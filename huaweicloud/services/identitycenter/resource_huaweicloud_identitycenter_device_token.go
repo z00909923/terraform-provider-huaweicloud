@@ -10,6 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"log"
+	"strconv"
+	"time"
 
 	"github.com/chnsz/golangsdk"
 
@@ -64,14 +66,16 @@ func ResourceIdentityCenterDeviceToken() *schema.Resource {
 				Type:     schema.TypeList,
 				Optional: true,
 				ForceNew: true,
-				Elem:     schema.TypeString,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
 			},
 			"access_token": {
-				Type:     schema.TypeList,
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 			"expires_in": {
-				Type:     schema.TypeList,
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 		},
@@ -82,14 +86,14 @@ func resourceIdentityCenterDeviceTokenCreate(ctx context.Context, d *schema.Reso
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 
-	// createIdentityCenterClient: create IdentityCenter client
+	// createIdentityCenterClient: create IdentityCenter device token
 	var (
-		createIdentityCenterDeviceTokenHttpUrl = "/v1/tokens"
+		createIdentityCenterDeviceTokenHttpUrl = "v1/tokens"
 		createIdentityCenterDeviceTokenProduct = "identityoidc"
 	)
 	createIdentityCenterDeviceTokenClient, err := cfg.NewServiceClient(createIdentityCenterDeviceTokenProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating Identity Center Client: %s", err)
+		return diag.Errorf("error creating Identity Center device token: %s", err)
 	}
 
 	createIdentityCenterDeviceTokenPath := createIdentityCenterDeviceTokenClient.Endpoint + createIdentityCenterDeviceTokenHttpUrl
@@ -101,7 +105,7 @@ func resourceIdentityCenterDeviceTokenCreate(ctx context.Context, d *schema.Reso
 	createIdentityCenterClientResp, err := createIdentityCenterDeviceTokenClient.Request("POST",
 		createIdentityCenterDeviceTokenPath, &createIdentityCenterDeviceTokenOpt)
 	if err != nil {
-		return diag.Errorf("error creating Identity Center Client: %s", err)
+		return diag.Errorf("error creating Identity Center device token: %s", err)
 	}
 
 	createIdentityCenterDeviceTokenRespBody, err := utils.FlattenResponse(createIdentityCenterClientResp)
@@ -109,11 +113,19 @@ func resourceIdentityCenterDeviceTokenCreate(ctx context.Context, d *schema.Reso
 		return diag.FromErr(err)
 	}
 
-	token := utils.PathSearch("access_token", createIdentityCenterDeviceTokenRespBody, "").(string)
+	token := utils.PathSearch("token_info.access_token", createIdentityCenterDeviceTokenRespBody, "").(string)
 	if token == "" {
 		return diag.Errorf("unable to find the Identity Center access_token from the API response")
 	}
 	d.SetId(token)
+	d.Set("access_token", token)
+	expiredAtFloat := utils.PathSearch("token_info.expires_in", createIdentityCenterDeviceTokenRespBody, 0).(float64)
+	expiredAt := int64(expiredAtFloat)
+	if expiredAt < time.Now().Unix() {
+		return diag.Errorf("unable to find the Identity Center expires_in from the API response")
+	}
+	expiredAtString := strconv.FormatInt(expiredAt, 10)
+	d.Set("expires_in", expiredAtString)
 
 	return nil
 }
@@ -133,6 +145,18 @@ func buildCreateIdentityCenterDeviceTokenBodyParams(d *schema.ResourceData) map[
 }
 
 func resourceIdentityCenterDeviceTokenRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	// If client expired, create a new token.
+	expiresAtString := d.Get("expires_in").(string)
+	if expiresAtString == "" {
+		expiresAtString = "1"
+	}
+	expiresAt, err := strconv.ParseInt(expiresAtString, 10, 64)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if time.Now().Unix() > expiresAt {
+		return diag.Errorf("token has expired, please provide a new device code to generate a new token")
+	}
 	return nil
 }
 
