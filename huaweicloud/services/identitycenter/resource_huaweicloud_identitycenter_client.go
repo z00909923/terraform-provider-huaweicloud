@@ -9,6 +9,9 @@ import (
 	"context"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"log"
+	"strconv"
+	"time"
 
 	"github.com/chnsz/golangsdk"
 
@@ -81,10 +84,12 @@ func ResourceIdentityCenterClient() *schema.Resource {
 }
 
 func resourceIdentityCenterClientCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return registerClient(d, meta)
+}
+
+func registerClient(d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
-
-	// createIdentityCenterClient: create IdentityCenter client
 	var (
 		createIdentityCenterClientHttpUrl = "v1/clients"
 		createIdentityCenterClientProduct = "identityoidc"
@@ -115,19 +120,20 @@ func resourceIdentityCenterClientCreate(ctx context.Context, d *schema.ResourceD
 		return diag.Errorf("unable to find the Identity Center Client ID from the API response")
 	}
 	d.SetId(clientId)
-
+	d.Set("client_id", clientId)
 	clientSecret := utils.PathSearch("client_info.client_secret", createIdentityCenterClientRespBody, "").(string)
 	if clientSecret == "" {
 		return diag.Errorf("unable to find the Identity Center Client ID from the API response")
 	}
 	d.Set("client_secret", clientSecret)
 
-	expiredAt := utils.PathSearch("client_info.client_secret_expires_at", createIdentityCenterClientRespBody, "").(string)
-	if expiredAt == "" {
-		return diag.Errorf("unable to find the Identity Center Client ID from the API response")
+	expiredAtFloat := utils.PathSearch("client_info.client_secret_expires_at", createIdentityCenterClientRespBody, 0).(float64)
+	expiredAt := int64(expiredAtFloat)
+	if expiredAt < time.Now().Unix() {
+		return diag.Errorf("unable to find the Identity Center client_secret_expires_at from the API response")
 	}
-	d.Set("client_secret_expires_at", expiredAt)
-
+	expiredAtString := strconv.FormatInt(expiredAt, 10)
+	d.Set("client_secret_expires_at", expiredAtString)
 	return nil
 }
 
@@ -144,6 +150,19 @@ func buildCreateIdentityCenterClientBodyParams(d *schema.ResourceData) map[strin
 }
 
 func resourceIdentityCenterClientRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	// If client expired, create a new token.
+	expiresAtString := d.Get("client_secret_expires_at").(string)
+	if expiresAtString == "" {
+		expiresAtString = "1"
+	}
+	expiresAt, err := strconv.ParseInt(expiresAtString, 10, 64)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if time.Now().Unix() > expiresAt {
+		log.Println("client has expired, create a new client")
+		registerClient(d, meta)
+	}
 	return nil
 }
 
