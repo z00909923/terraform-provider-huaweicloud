@@ -155,7 +155,12 @@ func resourceIdentityCenterDeviceTokenRead(_ context.Context, d *schema.Resource
 		return diag.FromErr(err)
 	}
 	if time.Now().Unix() > expiresAt {
-		return diag.Errorf("token has expired, please provide a new device code to generate a new token")
+		return diag.Diagnostics{
+			diag.Diagnostic{
+				Severity: diag.Warning,
+				Summary:  "token has expired, please provide a new device code to generate a new token",
+			},
+		}
 	}
 	return nil
 }

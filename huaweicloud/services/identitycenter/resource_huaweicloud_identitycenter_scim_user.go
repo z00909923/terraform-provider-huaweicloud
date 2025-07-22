@@ -264,7 +264,6 @@ func resourceIdentityCenterSCIMUserCreate(ctx context.Context, d *schema.Resourc
 			"Authorization": bearerToken,
 		},
 	}
-	log.Println(createIdentityCenterUserOpt)
 	createIdentityCenterUserOpt.JSONBody = utils.RemoveNil(buildCreateIdentityCenterSCIMUserBodyParams(d))
 	createIdentityCenterUserResp, err := createIdentityCenterUserClient.Request("POST",
 		createIdentityCenterUserPath, &createIdentityCenterUserOpt)

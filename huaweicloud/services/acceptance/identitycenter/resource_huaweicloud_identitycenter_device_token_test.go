@@ -31,12 +31,11 @@ func TestAccIdentityCenterDeviceToken_basic(t *testing.T) {
 
 func testIdentityCenterDeviceToken_basic() string {
 	return fmt.Sprintf(`
-%s
 resource "huaweicloud_identitycenter_device_token" "test"{
-	client_id      = huaweicloud_identitycenter_client.test.id
-	client_secret   = huaweicloud_identitycenter_client.test.client_secret
-    device_code	= "v6rk0nzerzggvc43uyejdo0r2w1ld1rgz3rg8hetl5fzg4q5elldl7xtlb9o1g1v"
+	client_id      = "%s"
+	client_secret   = "%s"
+	device_code	= "%s"
 	grant_type		= "urn:ietf:params:oauth:grant-type:device_code"
 }
-`, testIdentityCenterClient_basic())
+`, acceptance.HW_IDENTITY_CENTER_CLIENT_ID, acceptance.HW_IDENTITY_CENTER_CLIENT_SECRET, acceptance.HW_IDENTITY_CENTER_VERIFIED_DEVICE_CODE)
 }

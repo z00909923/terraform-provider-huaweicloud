@@ -35,7 +35,7 @@ func testIdentityCenterDeviceAuthorization_basic() string {
 resource "huaweicloud_identitycenter_device_authorization" "test"{
   client_id    = huaweicloud_identitycenter_client.test.client_id
   client_secret   = huaweicloud_identitycenter_client.test.client_secret
-  start_url  = "https://idcenter.huaweicloud.com/d-47f958c067/portal"
+  start_url  = "%s"
 }
-`, testIdentityCenterClient_basic())
+`, testIdentityCenterClient_basic(), acceptance.HW_IDENTITY_CENTER_PORTAL_URL)
 }
