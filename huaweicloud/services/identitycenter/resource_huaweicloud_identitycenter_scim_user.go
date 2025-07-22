@@ -7,7 +7,6 @@ package identitycenter
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -39,50 +38,74 @@ func ResourceIdentityCenterSCIMUser() *schema.Resource {
 
 		Description: "schema: Internal",
 		Schema: map[string]*schema.Schema{
-			"region": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
-			},
 			"tenant_id": {
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
 				Description: `Specifies the ID of the identity store`,
 			},
-			"userName": {
+			"header_authorization": {
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: `Specifies the ID of the identity store`,
+			},
+			"schemas": {
+				Type:        schema.TypeList,
+				Required:    true,
+				ForceNew:    true,
+				Description: `Specifies the ID of the identity store`,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+			},
+			"user_name": {
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
 				Description: `Specifies the username of the user.`,
 			},
-			"familyName": {
+			"family_name": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: `Specifies the family name of the user.`,
 			},
-			"givenName": {
+			"given_name": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: `Specifies the given name of the user.`,
 			},
-			"displayName": {
+			"display_name": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: `Specifies the display name of the user.`,
+			},
+			"nick_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `Specifies the family name of the user.`,
 			},
 			"email": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: `Specifies the email of the user.`,
 			},
-			"phoneNumber": {
+			"external_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: `Specifies the phone number of the user.`,
 			},
-			"userType": {
+			"phone_number": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `Specifies the phone number of the user.`,
+			},
+			"profile_url": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `Specifies the phone number of the user.`,
+			},
+			"user_type": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: `Specifies the type of the user.`,
@@ -90,6 +113,27 @@ func ResourceIdentityCenterSCIMUser() *schema.Resource {
 			"title": {
 				Type:        schema.TypeString,
 				Optional:    true,
+				Description: `Specifies the title of the user.`,
+			},
+			"preferred_language": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `Specifies the title of the user.`,
+			},
+			"locale": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `Specifies the title of the user.`,
+			},
+			"timezone": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `Specifies the title of the user.`,
+			},
+			"active": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
 				Description: `Specifies the title of the user.`,
 			},
 			"addresses": {
@@ -106,30 +150,15 @@ func ResourceIdentityCenterSCIMUser() *schema.Resource {
 				MaxItems:    1,
 				Elem:        identityCenterSCIMUserEnterpriseSchema(),
 			},
-			"created_at": {
+			"created": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: `The creation time of the user.`,
+				Description: `Specifies the manager of the enterprise.`,
 			},
-			"created_by": {
+			"last_modified": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: `The creator of the user.`,
-			},
-			"updated_at": {
-				Type:        schema.TypeString,
-				Computed:    true,
-				Description: `The update time of the user.`,
-			},
-			"updated_by": {
-				Type:        schema.TypeString,
-				Computed:    true,
-				Description: `The updater of the user.`,
-			},
-			"enabled": {
-				Type:        schema.TypeBool,
-				Computed:    true,
-				Description: `Whether the user is enabled.`,
+				Description: `Specifies the manager of the enterprise.`,
 			},
 		},
 	}
@@ -217,8 +246,8 @@ func resourceIdentityCenterSCIMUserCreate(ctx context.Context, d *schema.Resourc
 
 	// createIdentityCenterUser: create IdentityCenter user
 	var (
-		createIdentityCenterUserHttpUrl = "v1/identity-stores/{identity_store_id}/users"
-		createIdentityCenterUserProduct = "identitystore"
+		createIdentityCenterUserHttpUrl = "{tenant_id}/scim/v2/Users"
+		createIdentityCenterUserProduct = "identityscim"
 	)
 	createIdentityCenterUserClient, err := cfg.NewServiceClient(createIdentityCenterUserProduct, region)
 	if err != nil {
@@ -226,12 +255,16 @@ func resourceIdentityCenterSCIMUserCreate(ctx context.Context, d *schema.Resourc
 	}
 
 	createIdentityCenterUserPath := createIdentityCenterUserClient.Endpoint + createIdentityCenterUserHttpUrl
-	createIdentityCenterUserPath = strings.ReplaceAll(createIdentityCenterUserPath, "{identity_store_id}",
-		fmt.Sprintf("%v", d.Get("identity_store_id")))
-
+	createIdentityCenterUserPath = strings.ReplaceAll(createIdentityCenterUserPath, "{tenant_id}",
+		fmt.Sprintf("%v", d.Get("tenant_id")))
+	bearerToken := d.Get("header_authorization").(string)
 	createIdentityCenterUserOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
+		MoreHeaders: map[string]string{
+			"Authorization": bearerToken,
+		},
 	}
+	log.Println(createIdentityCenterUserOpt)
 	createIdentityCenterUserOpt.JSONBody = utils.RemoveNil(buildCreateIdentityCenterSCIMUserBodyParams(d))
 	createIdentityCenterUserResp, err := createIdentityCenterUserClient.Request("POST",
 		createIdentityCenterUserPath, &createIdentityCenterUserOpt)
@@ -255,40 +288,47 @@ func resourceIdentityCenterSCIMUserCreate(ctx context.Context, d *schema.Resourc
 
 func buildCreateIdentityCenterSCIMUserBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"user_name":     utils.ValueIgnoreEmpty(d.Get("user_name")),
-		"password_mode": utils.ValueIgnoreEmpty(d.Get("password_mode")),
-		"display_name":  utils.ValueIgnoreEmpty(d.Get("display_name")),
+		"schemas":           d.Get("schemas"),
+		"externalId":        utils.ValueIgnoreEmpty(d.Get("external_id")),
+		"profileUrl":        utils.ValueIgnoreEmpty(d.Get("profile_url")),
+		"nickName":          utils.ValueIgnoreEmpty(d.Get("nick_name")),
+		"preferredLanguage": utils.ValueIgnoreEmpty(d.Get("preferred_language")),
+		"locale":            utils.ValueIgnoreEmpty(d.Get("locale")),
+		"timezone":          utils.ValueIgnoreEmpty(d.Get("timezone")),
+		"active":            utils.ValueIgnoreEmpty(d.Get("active")),
+		"userName":          utils.ValueIgnoreEmpty(d.Get("user_name")),
+		"displayName":       utils.ValueIgnoreEmpty(d.Get("display_name")),
 		"emails": []map[string]interface{}{{
 			"primary": true,
 			"type":    "Work",
 			"value":   utils.ValueIgnoreEmpty(d.Get("email")),
 		}},
 		"name": map[string]interface{}{
-			"family_name": utils.ValueIgnoreEmpty(d.Get("family_name")),
-			"given_name":  utils.ValueIgnoreEmpty(d.Get("given_name")),
+			"familyName": utils.ValueIgnoreEmpty(d.Get("family_name")),
+			"givenName":  utils.ValueIgnoreEmpty(d.Get("given_name")),
 		},
-		"title":     utils.ValueIgnoreEmpty(d.Get("title")),
-		"user_type": utils.ValueIgnoreEmpty(d.Get("user_type")),
-		"phone_numbers": []map[string]interface{}{{
+		"title":    utils.ValueIgnoreEmpty(d.Get("title")),
+		"userType": utils.ValueIgnoreEmpty(d.Get("user_type")),
+		"phoneNumbers": []map[string]interface{}{{
 			"primary": true,
 			"type":    "Work",
 			"value":   utils.ValueIgnoreEmpty(d.Get("phone_number")),
 		}},
 		"addresses": []map[string]interface{}{
 			{
-				"country":        utils.ValueIgnoreEmpty(d.Get("addresses.0.country")),
-				"formatted":      utils.ValueIgnoreEmpty(d.Get("addresses.0.formatted")),
-				"locality":       utils.ValueIgnoreEmpty(d.Get("addresses.0.locality")),
-				"postal_code":    utils.ValueIgnoreEmpty(d.Get("addresses.0.postal_code")),
-				"region":         utils.ValueIgnoreEmpty(d.Get("addresses.0.region")),
-				"street_address": utils.ValueIgnoreEmpty(d.Get("addresses.0.street_address")),
+				"country":       utils.ValueIgnoreEmpty(d.Get("addresses.0.country")),
+				"formatted":     utils.ValueIgnoreEmpty(d.Get("addresses.0.formatted")),
+				"locality":      utils.ValueIgnoreEmpty(d.Get("addresses.0.locality")),
+				"postalCode":    utils.ValueIgnoreEmpty(d.Get("addresses.0.postal_code")),
+				"region":        utils.ValueIgnoreEmpty(d.Get("addresses.0.region")),
+				"streetAddress": utils.ValueIgnoreEmpty(d.Get("addresses.0.street_address")),
 			},
 		},
-		"enterprise": map[string]interface{}{
-			"cost_center":     utils.ValueIgnoreEmpty(d.Get("enterprise.0.cost_center")),
-			"department":      utils.ValueIgnoreEmpty(d.Get("enterprise.0.department")),
-			"division":        utils.ValueIgnoreEmpty(d.Get("enterprise.0.division")),
-			"employee_number": utils.ValueIgnoreEmpty(d.Get("enterprise.0.employee_number")),
+		"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": map[string]interface{}{
+			"costCenter":     utils.ValueIgnoreEmpty(d.Get("enterprise.0.cost_center")),
+			"department":     utils.ValueIgnoreEmpty(d.Get("enterprise.0.department")),
+			"division":       utils.ValueIgnoreEmpty(d.Get("enterprise.0.division")),
+			"employeeNumber": utils.ValueIgnoreEmpty(d.Get("enterprise.0.employee_number")),
 			"manager": map[string]interface{}{
 				"value": utils.ValueIgnoreEmpty(d.Get("enterprise.0.manager")),
 			},
@@ -306,8 +346,8 @@ func resourceIdentityCenterSCIMUserRead(_ context.Context, d *schema.ResourceDat
 
 	// getIdentityCenterUser: Query Identity Center user
 	var (
-		getIdentityCenterUserHttpUrl = "v1/identity-stores/{identity_store_id}/users/{user_id}"
-		getIdentityCenterUserProduct = "identitystore"
+		getIdentityCenterUserHttpUrl = "{tenant_id}/scim/v2/Users/{user_id}"
+		getIdentityCenterUserProduct = "identityscim"
 	)
 	getIdentityCenterUserClient, err := cfg.NewServiceClient(getIdentityCenterUserProduct, region)
 	if err != nil {
@@ -315,12 +355,16 @@ func resourceIdentityCenterSCIMUserRead(_ context.Context, d *schema.ResourceDat
 	}
 
 	getIdentityCenterUserPath := getIdentityCenterUserClient.Endpoint + getIdentityCenterUserHttpUrl
-	getIdentityCenterUserPath = strings.ReplaceAll(getIdentityCenterUserPath, "{identity_store_id}",
-		fmt.Sprintf("%v", d.Get("identity_store_id")))
+	getIdentityCenterUserPath = strings.ReplaceAll(getIdentityCenterUserPath, "{tenant_id}",
+		fmt.Sprintf("%v", d.Get("tenant_id")))
 	getIdentityCenterUserPath = strings.ReplaceAll(getIdentityCenterUserPath, "{user_id}", d.Id())
 
+	bearerToken := d.Get("header_authorization").(string)
 	getIdentityCenterUserOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
+		MoreHeaders: map[string]string{
+			"Authorization": bearerToken,
+		},
 	}
 	getIdentityCenterUserResp, err := getIdentityCenterUserClient.Request("GET", getIdentityCenterUserPath,
 		&getIdentityCenterUserOpt)
@@ -336,25 +380,25 @@ func resourceIdentityCenterSCIMUserRead(_ context.Context, d *schema.ResourceDat
 
 	mErr = multierror.Append(
 		mErr,
-		d.Set("region", region),
-		d.Set("user_name", utils.PathSearch("user_name", getIdentityCenterUserRespBody, nil)),
-		d.Set("family_name", utils.PathSearch("name.family_name", getIdentityCenterUserRespBody, nil)),
-		d.Set("given_name", utils.PathSearch("name.given_name", getIdentityCenterUserRespBody, nil)),
-		d.Set("display_name", utils.PathSearch("display_name", getIdentityCenterUserRespBody, nil)),
+		d.Set("external_id", utils.PathSearch("externalId", getIdentityCenterUserRespBody, nil)),
+		d.Set("schemas", utils.PathSearch("schemas", getIdentityCenterUserRespBody, nil)),
+		d.Set("created", utils.PathSearch("meta.created", getIdentityCenterUserRespBody, nil)),
+		d.Set("last_modified", utils.PathSearch("meta.lastModified", getIdentityCenterUserRespBody, nil)),
+		d.Set("active", utils.PathSearch("active", getIdentityCenterUserRespBody, nil)),
+		d.Set("preferred_language", utils.PathSearch("preferredLanguage", getIdentityCenterUserRespBody, nil)),
+		d.Set("user_type", utils.PathSearch("userType", getIdentityCenterUserRespBody, nil)),
+		d.Set("locale", utils.PathSearch("locale", getIdentityCenterUserRespBody, nil)),
+		d.Set("timezone", utils.PathSearch("timezone", getIdentityCenterUserRespBody, nil)),
+		d.Set("user_name", utils.PathSearch("userName", getIdentityCenterUserRespBody, nil)),
+		d.Set("family_name", utils.PathSearch("name.familyName", getIdentityCenterUserRespBody, nil)),
+		d.Set("given_name", utils.PathSearch("name.givenName", getIdentityCenterUserRespBody, nil)),
+		d.Set("display_name", utils.PathSearch("displayName", getIdentityCenterUserRespBody, nil)),
 		d.Set("email", utils.PathSearch("emails|[0].value", getIdentityCenterUserRespBody, nil)),
-		d.Set("phone_number", utils.PathSearch("phone_numbers|[0].value", getIdentityCenterUserRespBody, nil)),
+		d.Set("phone_number", utils.PathSearch("phoneNumbers|[0].value", getIdentityCenterUserRespBody, nil)),
 		d.Set("title", utils.PathSearch("title", getIdentityCenterUserRespBody, nil)),
-		d.Set("user_type", utils.PathSearch("user_type", getIdentityCenterUserRespBody, nil)),
-		d.Set("created_by", utils.PathSearch("created_by", getIdentityCenterUserRespBody, nil)),
-		d.Set("updated_by", utils.PathSearch("updated_by", getIdentityCenterUserRespBody, nil)),
-		d.Set("email_verified", utils.PathSearch("email_verified", getIdentityCenterUserRespBody, false)),
-		d.Set("enabled", utils.PathSearch("enabled", getIdentityCenterUserRespBody, false)),
-		d.Set("created_at", utils.FormatTimeStampRFC3339(
-			int64(utils.PathSearch("created_at", getIdentityCenterUserRespBody, float64(0)).(float64))/1000, false)),
-		d.Set("updated_at", utils.FormatTimeStampRFC3339(
-			int64(utils.PathSearch("updated_at", getIdentityCenterUserRespBody, float64(0)).(float64))/1000, false)),
+		d.Set("user_type", utils.PathSearch("userType", getIdentityCenterUserRespBody, nil)),
 		d.Set("addresses", flattenIdentityCenterSCIMUserAddresses(utils.PathSearch("addresses|[0]", getIdentityCenterUserRespBody, nil))),
-		d.Set("enterprise", flattenIdentityCenterSCIMUserEnterprise(utils.PathSearch("enterprise", getIdentityCenterUserRespBody, nil))),
+		d.Set("enterprise", flattenIdentityCenterSCIMUserEnterprise(utils.PathSearch("urn:ietf:params:scim:schemas:extension:enterprise:2.0:User", getIdentityCenterUserRespBody, nil))),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -370,9 +414,9 @@ func flattenIdentityCenterSCIMUserAddresses(address interface{}) []map[string]in
 			"country":        utils.PathSearch("country", address, nil),
 			"formatted":      utils.PathSearch("formatted", address, nil),
 			"locality":       utils.PathSearch("locality", address, nil),
-			"postal_code":    utils.PathSearch("postal_code", address, nil),
+			"postal_code":    utils.PathSearch("postalCode", address, nil),
 			"region":         utils.PathSearch("region", address, nil),
-			"street_address": utils.PathSearch("street_address", address, nil),
+			"street_address": utils.PathSearch("streetAddress", address, nil),
 		},
 	}
 }
@@ -391,10 +435,10 @@ func flattenIdentityCenterSCIMUserEnterprise(enterprise interface{}) []map[strin
 
 	return []map[string]interface{}{
 		{
-			"cost_center":     utils.PathSearch("cost_center", enterprise, nil),
+			"cost_center":     utils.PathSearch("costCenter", enterprise, nil),
 			"department":      utils.PathSearch("department", enterprise, nil),
 			"division":        utils.PathSearch("division", enterprise, nil),
-			"employee_number": utils.PathSearch("employee_number", enterprise, nil),
+			"employee_number": utils.PathSearch("employeeNumber", enterprise, nil),
 			"organization":    utils.PathSearch("organization", enterprise, nil),
 			"manager":         manager,
 		},
@@ -407,8 +451,8 @@ func resourceIdentityCenterSCIMUserUpdate(ctx context.Context, d *schema.Resourc
 
 	// updateIdentityCenterUser: update Identity Center user
 	var (
-		updateIdentityCenterUserHttpUrl = "v1/identity-stores/{identity_store_id}/users/{user_id}"
-		updateIdentityCenterUserProduct = "identitystore"
+		updateIdentityCenterUserHttpUrl = "{tenant_id}/scim/v2/Users/{user_id}"
+		updateIdentityCenterUserProduct = "identityscim"
 	)
 	updateIdentityCenterUserClient, err := cfg.NewServiceClient(updateIdentityCenterUserProduct, region)
 	if err != nil {
@@ -416,14 +460,18 @@ func resourceIdentityCenterSCIMUserUpdate(ctx context.Context, d *schema.Resourc
 	}
 
 	updateIdentityCenterUserPath := updateIdentityCenterUserClient.Endpoint + updateIdentityCenterUserHttpUrl
-	updateIdentityCenterUserPath = strings.ReplaceAll(updateIdentityCenterUserPath, "{identity_store_id}",
-		fmt.Sprintf("%v", d.Get("identity_store_id")))
+	updateIdentityCenterUserPath = strings.ReplaceAll(updateIdentityCenterUserPath, "{tenant_id}",
+		fmt.Sprintf("%v", d.Get("tenant_id")))
 	updateIdentityCenterUserPath = strings.ReplaceAll(updateIdentityCenterUserPath, "{user_id}", d.Id())
 
+	bearerToken := d.Get("header_authorization").(string)
 	updateIdentityCenterUserOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
+		MoreHeaders: map[string]string{
+			"Authorization": bearerToken,
+		},
 	}
-	updateIdentityCenterUserOpt.JSONBody = utils.RemoveNil(buildUpdateIdentityCenterSCIMUserBodyParams(d))
+	updateIdentityCenterUserOpt.JSONBody = utils.RemoveNil(buildCreateIdentityCenterSCIMUserBodyParams(d))
 	_, err = updateIdentityCenterUserClient.Request("PUT", updateIdentityCenterUserPath,
 		&updateIdentityCenterUserOpt)
 	if err != nil {
@@ -432,102 +480,37 @@ func resourceIdentityCenterSCIMUserUpdate(ctx context.Context, d *schema.Resourc
 	return resourceIdentityCenterUserRead(ctx, d, meta)
 }
 
-func buildUpdateIdentityCenterSCIMUserBodyParams(d *schema.ResourceData) map[string]interface{} {
-	operations := make([]map[string]interface{}, 0)
-	if d.HasChanges("family_name", "given_name") {
-		updateValue := map[string]interface{}{
-			"family_name": utils.ValueIgnoreEmpty(d.Get("family_name")),
-			"given_name":  utils.ValueIgnoreEmpty(d.Get("given_name")),
-		}
-		updateValueJson, _ := json.Marshal(updateValue)
-		operations = append(operations, map[string]interface{}{
-			"attribute_path":  "name",
-			"attribute_value": string(updateValueJson),
-		})
-	}
-	if d.HasChange("display_name") {
-		operations = append(operations, map[string]interface{}{
-			"attribute_path":  "display_name",
-			"attribute_value": d.Get("display_name"),
-		})
-	}
-	if d.HasChange("email") {
-		updateValue := []map[string]interface{}{{
-			"primary": true,
-			"type":    "Work",
-			"value":   utils.ValueIgnoreEmpty(d.Get("email")),
-		}}
-		updateValueJson, _ := json.Marshal(updateValue)
-		operations = append(operations, map[string]interface{}{
-			"attribute_path":  "emails",
-			"attribute_value": string(updateValueJson),
-		})
-	}
-
-	if d.HasChange("phone_number") {
-		updateValue := []map[string]interface{}{{
-			"primary": true,
-			"type":    "Work",
-			"value":   utils.ValueIgnoreEmpty(d.Get("phone_number")),
-		}}
-		updateValueJson, _ := json.Marshal(updateValue)
-		operations = append(operations, map[string]interface{}{
-			"attribute_path":  "phone_numbers",
-			"attribute_value": string(updateValueJson),
-		})
-	}
-
-	if d.HasChange("addresses") {
-		updateValue := []map[string]interface{}{{
-			"country":        utils.ValueIgnoreEmpty(d.Get("addresses.0.country")),
-			"region":         utils.ValueIgnoreEmpty(d.Get("addresses.0.region")),
-			"locality":       utils.ValueIgnoreEmpty(d.Get("addresses.0.locality")),
-			"postal_code":    utils.ValueIgnoreEmpty(d.Get("addresses.0.postal_code")),
-			"street_address": utils.ValueIgnoreEmpty(d.Get("addresses.0.street_address")),
-			"formatted":      utils.ValueIgnoreEmpty(d.Get("addresses.0.formatted")),
-		}}
-		updateValueJson, _ := json.Marshal(updateValue)
-		operations = append(operations, map[string]interface{}{
-			"attribute_path":  "addresses",
-			"attribute_value": string(updateValueJson),
-		})
-	}
-
-	if d.HasChange("user_type") {
-		operations = append(operations, map[string]interface{}{
-			"attribute_path":  "user_type",
-			"attribute_value": utils.ValueIgnoreEmpty(d.Get("user_type")),
-		})
-	}
-
-	if d.HasChange("title") {
-		operations = append(operations, map[string]interface{}{
-			"attribute_path":  "title",
-			"attribute_value": utils.ValueIgnoreEmpty(d.Get("title")),
-		})
-	}
-
-	if d.HasChange("enterprise") {
-		updateValue := map[string]interface{}{
-			"cost_center":     utils.ValueIgnoreEmpty(d.Get("enterprise.0.cost_center")),
-			"department":      utils.ValueIgnoreEmpty(d.Get("enterprise.0.department")),
-			"division":        utils.ValueIgnoreEmpty(d.Get("enterprise.0.division")),
-			"employee_number": utils.ValueIgnoreEmpty(d.Get("enterprise.0.employee_number")),
-			"organization":    utils.ValueIgnoreEmpty(d.Get("enterprise.0.organization")),
-			"manager": map[string]interface{}{
-				"value": utils.ValueIgnoreEmpty(d.Get("enterprise.0.manager")),
-			},
-		}
-		updateValueJson, _ := json.Marshal(updateValue)
-		operations = append(operations, map[string]interface{}{
-			"attribute_path":  "enterprise",
-			"attribute_value": string(updateValueJson),
-		})
-	}
-	return map[string]interface{}{"operations": operations}
-}
-
 func resourceIdentityCenterSCIMUserDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+
+	// deleteIdentityCenterUser: Delete Identity Center user
+	var (
+		deleteIdentityCenterUserHttpUrl = "{tenant_id}/scim/v2/Users/{user_id}"
+		deleteIdentityCenterUserProduct = "identityscim"
+	)
+	deleteIdentityCenterUserClient, err := cfg.NewServiceClient(deleteIdentityCenterUserProduct, region)
+	if err != nil {
+		return diag.Errorf("error creating Identity Center Client: %s", err)
+	}
+
+	deleteIdentityCenterUserPath := deleteIdentityCenterUserClient.Endpoint + deleteIdentityCenterUserHttpUrl
+	deleteIdentityCenterUserPath = strings.ReplaceAll(deleteIdentityCenterUserPath, "{tenant_id}",
+		fmt.Sprintf("%v", d.Get("tenant_id")))
+	deleteIdentityCenterUserPath = strings.ReplaceAll(deleteIdentityCenterUserPath, "{user_id}", d.Id())
+
+	bearerToken := d.Get("header_authorization").(string)
+	deleteIdentityCenterUserOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders: map[string]string{
+			"Authorization": bearerToken,
+		},
+	}
+	_, err = deleteIdentityCenterUserClient.Request("DELETE", deleteIdentityCenterUserPath,
+		&deleteIdentityCenterUserOpt)
+	if err != nil {
+		return diag.Errorf("error deleting Identity Center User: %s", err)
+	}
 
 	return nil
 }
